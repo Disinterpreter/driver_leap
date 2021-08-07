@@ -1,0 +1,83 @@
+name: MSBuild
+
+on: [push]
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: .
+
+  # Configuration type to build.
+  # You can convert this to a build matrix if you need coverage of multiple configuration types.
+  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  BUILD_CONFIGURATION: Release
+  BUILD_CONFIGURATION_ARCH32: x86
+jobs:
+  build64:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Update repo.
+      run: |
+        git submodule update --init --depth=1
+        
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}}
+      
+    - name: Packaging
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: |
+        mkdir leap/bin/win64
+        cp .\driver.vrdrivermanifest .\leap\
+        Copy-Item -Path ".\bin\win64\*" -Destination ".\leap\bin\win64\" -Recurse -Include *.exe,*.dll
+        Copy-Item -Path ".\vendor\openvr\bin\win64\*" -Destination ".\leap\bin\win64\" -Recurse -Include *.exe,*.dll
+        Copy-Item -Path ".\vendor\LeapSDK\bin\x64\LeapC.dll" -Destination ".\leap\bin\win64\" -Recurse
+        Copy-Item -Path ".\resources" -Destination ".\leap\" -Recurse        
+      
+    - uses: actions/upload-artifact@master
+      with:
+        name: driver_leap64
+        path: .\leap
+
+  build86:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Update repo.
+      run: |
+        git submodule update --init --depth=1
+        
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+          
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=${{env.BUILD_CONFIGURATION_ARCH32}} /p:PlatformTarget=${{env.BUILD_CONFIGURATION_ARCH32}} ${{env.SOLUTION_FILE_PATH}}
+          
+    - name: Packaging
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: |
+        mkdir leap/bin/win32
+        cp .\driver.vrdrivermanifest .\leap\
+        Copy-Item -Path ".\bin\win32\*" -Destination ".\leap\bin\win32\" -Recurse -Include *.exe,*.dll
+        Copy-Item -Path ".\vendor\openvr\bin\win32\*" -Destination ".\leap\bin\win32\" -Recurse -Include *.exe,*.dll
+        Copy-Item -Path ".\vendor\LeapSDK\bin\x86\LeapC.dll" -Destination ".\leap\bin\win32\" -Recurse
+        Copy-Item -Path ".\resources" -Destination ".\leap\" -Recurse      
+
+    - uses: actions/upload-artifact@master
+      with:
+        name: driver_leap32
+        path: .\leap
